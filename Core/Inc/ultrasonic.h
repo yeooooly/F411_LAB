@@ -21,6 +21,7 @@ extern volatile uint16_t g_trace_echo_ticks;
 extern volatile uint8_t g_trace_echo_edge;
 extern volatile uint8_t g_trace_echo_state;
 extern volatile uint32_t g_trace_edge_count;
+extern volatile uint8_t g_trace_trig_edge;
 
 void Ultrasonic_Init(void);
 void Ultrasonic_Task(void);

@@ -7,6 +7,7 @@ volatile uint16_t g_trace_echo_ticks;
 volatile uint8_t g_trace_echo_edge;
 volatile uint8_t g_trace_echo_state;
 volatile uint32_t g_trace_edge_count;
+volatile uint8_t g_trace_trig_edge;
 
 #define US_SAMPLE_PERIOD_MS 200U
 #define US_PUBLISH_PERIOD_MS 1000U
@@ -89,6 +90,7 @@ void Ultrasonic_Init(void)
   g_trace_echo_edge = 0U;
   g_trace_echo_state = 0U;
   g_trace_edge_count = 0U;
+  g_trace_trig_edge = 0U;
 }
 
 void Ultrasonic_Task(void)
@@ -114,10 +116,12 @@ void Ultrasonic_Task(void)
 
         trigStartCnt = US_GetCounter();
         HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_SET);
+        g_trace_trig_edge = 1U;
         while ((uint16_t)(US_GetCounter() - trigStartCnt) < US_TRIG_PULSE_US)
         {
         }
         HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_RESET);
+        g_trace_trig_edge = 0U;
 
         s_echoStartTick = now;
         s_state = US_STATE_WAIT_ECHO;
