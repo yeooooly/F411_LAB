@@ -1,5 +1,9 @@
 # F411_LAB
 
+> **현재 main.c = DHT11 온습도 측정** (A2 = PA4) → 정리 문서 : [STM32F411_Project / 03. DHT11](https://github.com/yeooooly/STM32F411_Project/tree/main/03_DHT11_DOC)
+>
+> 아래 HC-SR04 내용은 이전 단계 (`ultrasonic.c` 는 그대로 남아 있음)
+
 NUCLEO-F411RE 로 HC-SR04 초음파 센서 거리를 측정하는 STM32CubeIDE 프로젝트
 
 - 수업 자료 : [gotree94/STM32 STEP02_거리측정2 (NUCLEO-F411RE)](https://github.com/gotree94/STM32/blob/main/NUCLEO_F411RE/00.F411_TASK_LAB/STEP02_%EA%B1%B0%EB%A6%AC%EC%B8%A1%EC%A0%952.md)
