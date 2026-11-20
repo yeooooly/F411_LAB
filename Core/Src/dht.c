@@ -128,16 +128,19 @@ static void DHT_SetPinInput(void)
   HAL_GPIO_Init(DHT_PORT, &gpio);
 }
 
+// TIM1 (1 MHz, 16비트) 사용 : 이 프로젝트에는 TIM2 가 없음
+// 카운터는 리셋하지 않고 읽기만 함 → 초음파 측정과 같이 써도 됨
+// 16비트라서 경과 시간은 (uint16_t) 뺄셈으로 계산 (최대 65535 µs)
 static uint32_t DHT_NowUs(void)
 {
-  return TIM2->CNT;
+  return (uint16_t)TIM1->CNT;
 }
 
 static void DHT_DelayUs(uint32_t us)
 {
   uint32_t start = DHT_NowUs();
 
-  while ((DHT_NowUs() - start) < us)
+  while ((uint16_t)(DHT_NowUs() - start) < us)
   {
   }
 }
@@ -148,7 +151,7 @@ static uint8_t DHT_WaitLevel(GPIO_PinState level, uint32_t timeout_us, uint32_t 
 
   while (HAL_GPIO_ReadPin(DHT_PORT, DHT_PIN) != level)
   {
-    if ((DHT_NowUs() - start) >= timeout_us)
+    if ((uint16_t)(DHT_NowUs() - start) >= timeout_us)
     {
       return 0U;
     }
@@ -156,7 +159,7 @@ static uint8_t DHT_WaitLevel(GPIO_PinState level, uint32_t timeout_us, uint32_t 
 
   if (duration != NULL)
   {
-    *duration = DHT_NowUs() - start;
+    *duration = (uint16_t)(DHT_NowUs() - start);
   }
 
   return 1U;

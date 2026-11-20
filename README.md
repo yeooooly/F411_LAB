@@ -9,6 +9,7 @@ NUCLEO-F411RE 실습 프로젝트 (STM32CubeIDE) 와 실습 정리 문서
 
 - [01. HC-SR04 STEP02 거리측정2](./01_HC-SR04_STEP02_2) : TIM1 + EXTI 비차단 상태 머신, 5 Hz 측정 / 1 Hz 중앙값, UART `D,` / `C,` 출력, SWV 트레이스 (Timeline Graph, TRIG ↔ ECHO 타이밍)
 - [02. DHT11](./02_DHT11) : 온습도 센서 1-Wire 통신, 시작 신호 / 40비트 데이터, 체크섬, PA4 (A2) 연결, UART 출력
+- [03. FreeRTOS](./03_FreeRTOS) : CMSIS_V2, 초음파 / DHT 태스크 분리, UART mutex, 온습도 음속 보정, `D` / `C` / `TH` / `ENV` / `S` 출력, ECHO 파형
 
 ## 프로젝트 구조
 
@@ -16,8 +17,10 @@ NUCLEO-F411RE 실습 프로젝트 (STM32CubeIDE) 와 실습 정리 문서
 F411_LAB/
 ├── 01_HC-SR04_STEP02_2/   HC-SR04 STEP02 거리측정2 문서
 ├── 02_DHT11/              DHT11 온습도 센서 문서
+├── 03_FreeRTOS/           FreeRTOS 태스크 분리 문서
 ├── Core/                  사용자 코드 (main.c, ultrasonic.c 등)
 ├── Drivers/               HAL / CMSIS
+├── Middlewares/           FreeRTOS (CubeMX 생성)
 └── F411_LAB.ioc           CubeMX 설정
 ```
 

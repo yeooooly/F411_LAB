@@ -18,12 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
 #include "ultrasonic.h"
+#include "dht.h"
 
 
 /* USER CODE END Includes */
@@ -55,6 +57,32 @@ TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for myTask02 */
+osThreadId_t myTask02Handle;
+const osThreadAttr_t myTask02_attributes = {
+  .name = "myTask02",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityBelowNormal1,
+};
+/* Definitions for myTask03 */
+osThreadId_t myTask03Handle;
+const osThreadAttr_t myTask03_attributes = {
+  .name = "myTask03",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal1,
+};
+/* Definitions for myMutex01 */
+osMutexId_t myMutex01Handle;
+const osMutexAttr_t myMutex01_attributes = {
+  .name = "myMutex01"
+};
 /* USER CODE BEGIN PV */
 DHT11_Data dht11_data;
 char uart_buffer[100];  // uart_buffer 변수 선언 추가
@@ -66,6 +94,10 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
+void StartDefaultTask(void *argument);
+void StartUltrasonicTask(void *argument);
+void StartDhtTask(void *argument);
+
 /* USER CODE BEGIN PFP */
 void DHT11_SetPinOutput(void);
 void DHT11_SetPinInput(void);
@@ -76,6 +108,7 @@ uint8_t DHT11_Start(void);
 uint8_t DHT11_ReadBit(void);
 uint8_t DHT11_ReadByte(void);
 uint8_t DHT11_ReadData(DHT11_Data *data);
+uint16_t Sensor_SoundSpeedX10(int16_t temperature_c_x10, uint16_t humidity_rh_x10);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -250,6 +283,18 @@ uint8_t DHT11_ReadData(DHT11_Data *data) {
         return 0; // 체크섬 오류
     }
 }
+
+// 온도 / 습도로 음속 계산 (단위 : 0.1 m/s)
+// c ≈ 331.3 + 0.606 × T(°C) + 0.0124 × RH(%)  [m/s]
+// 입력이 ×10 단위이므로 : c_x10 = 3313 + 0.606 × T_x10 + 0.0124 × RH_x10
+uint16_t Sensor_SoundSpeedX10(int16_t temperature_c_x10, uint16_t humidity_rh_x10)
+{
+  int32_t speed_x10 = 3313
+                    + ((int32_t)temperature_c_x10 * 606) / 1000
+                    + ((int32_t)humidity_rh_x10 * 124) / 10000;
+
+  return (uint16_t)speed_x10;   // 범위 검사(250.0 ~ 400.0 m/s)는 Ultrasonic_SetSoundSpeedX10() 에서 함
+}
 /* USER CODE END 0 */
 
 /**
@@ -284,23 +329,66 @@ int main(void)
   MX_TIM1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  // PA0(A0) = 초음파 ECHO 인터럽트(EXTI0) → 이번엔 초음파를 쓰지 않으므로 DHT11 타이밍을 방해하지 않게 끔
-  HAL_NVIC_DisableIRQ(EXTI0_IRQn);
-
   // DHT11 핀 초기 설정
   DHT11_SetPinOutput();
   DHT11_SetPin(GPIO_PIN_SET);  // 초기에 HIGH로 설정
   HAL_Delay(1000);  // DHT11 안정화 시간
 
 
-  // 타이머 시작 (마이크로초 단위 지연용)
-  HAL_TIM_Base_Start(&htim1);
+  // 초음파 / DHT11 모듈 초기화 (Ultrasonic_Init 안에서 TIM1 시작 → 여기서 따로 시작하면 HAL_ERROR)
+  Ultrasonic_Init();
+  Dht_Init();
 
   // UART 초기화 메시지
   sprintf(uart_buffer, "DHT11 Temperature & Humidity Sensor Test\r\n");
   HAL_UART_Transmit(&huart2, (uint8_t*)uart_buffer, strlen(uart_buffer), HAL_MAX_DELAY);
 
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();
+  /* Create the mutex(es) */
+  /* creation of myMutex01 */
+  myMutex01Handle = osMutexNew(&myMutex01_attributes);
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of myTask02 */
+  myTask02Handle = osThreadNew(StartUltrasonicTask, NULL, &myTask02_attributes);
+
+  /* creation of myTask03 */
+  myTask03Handle = osThreadNew(StartDhtTask, NULL, &myTask03_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -492,10 +580,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -506,12 +594,123 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  if (GPIO_Pin == B1_Pin)
+  if (GPIO_Pin == ECHO_Pin)
+  {
+    Ultrasonic_OnEchoEdge();
+  }
+  else if (GPIO_Pin == B1_Pin)
   {
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
   }
 }
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartUltrasonicTask */
+/**
+* @brief Function implementing the myTask02 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartUltrasonicTask */
+void StartUltrasonicTask(void *argument)
+{
+  /* USER CODE BEGIN StartUltrasonicTask */
+  Ultrasonic_Result result;
+  char line[80];
+
+  for(;;)
+  {
+    Ultrasonic_Task();
+
+    if (Ultrasonic_GetResult(&result) != 0U)
+    {
+      (void)snprintf(line, sizeof(line), "D,%lu,%u,%u,%lu\n",
+                     (unsigned long)result.timestamp_ms,
+                     (unsigned int)result.distance_mm,
+                     (unsigned int)result.valid,
+                     (unsigned long)result.errors);
+
+      (void)osMutexAcquire(myMutex01Handle, osWaitForever);
+      printf("%s", line);
+      printf("C,%u\n", (unsigned int)Ultrasonic_GetLastEchoTicks());
+      (void)osMutexRelease(myMutex01Handle);
+    }
+
+    osDelay(10);
+  }
+  /* USER CODE END StartUltrasonicTask */
+}
+
+/* USER CODE BEGIN Header_StartDhtTask */
+/**
+* @brief Function implementing the myTask03 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartDhtTask */
+void StartDhtTask(void *argument)
+{
+  /* USER CODE BEGIN StartDhtTask */
+  Dht_Result dht;
+  char line[96];
+  int32_t temperature;
+  uint16_t speed_x10;
+
+  for(;;)
+  {
+    Dht_Task();
+
+    if (Dht_GetResult(&dht) != 0U)
+    {
+      temperature = (int32_t)dht.temperature_c_x10;
+      (void)snprintf(line, sizeof(line), "TH,%lu,%d,%u,%u,%lu\n",
+                     (unsigned long)dht.timestamp_ms,
+                     (int)temperature,
+                     (unsigned int)dht.humidity_rh_x10,
+                     (unsigned int)dht.valid,
+                     (unsigned long)dht.errors);
+
+      (void)osMutexAcquire(myMutex01Handle, osWaitForever);
+      printf("%s", line);
+      printf("ENV,%c%u.%uC,%u.%u%%RH\n",
+             (temperature < 0) ? '-' : '+',
+             (unsigned int)((temperature < 0) ? -temperature : temperature) / 10U,
+             (unsigned int)((temperature < 0) ? -temperature : temperature) % 10U,
+             (unsigned int)dht.humidity_rh_x10 / 10U,
+             (unsigned int)dht.humidity_rh_x10 % 10U);
+
+      if (dht.valid != 0U)
+      {
+        speed_x10 = Sensor_SoundSpeedX10(dht.temperature_c_x10,
+                                         dht.humidity_rh_x10);
+        Ultrasonic_SetSoundSpeedX10(speed_x10);
+        printf("S,%u\n", (unsigned int)speed_x10);
+      }
+      (void)osMutexRelease(myMutex01Handle);
+    }
+
+    osDelay(100);
+  }
+  /* USER CODE END StartDhtTask */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
