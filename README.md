@@ -1,15 +1,31 @@
 # F411_LAB
 
-> **현재 main.c = DHT11 온습도 측정** (A2 = PA4) → 정리 문서 : [STM32F411_Project / 03. DHT11](https://github.com/yeooooly/STM32F411_Project/tree/main/03_DHT11_DOC)
->
-> 아래 HC-SR04 내용은 이전 단계 (`ultrasonic.c` 는 그대로 남아 있음)
+NUCLEO-F411RE 실습 프로젝트 (STM32CubeIDE) 와 실습 정리 문서
 
-NUCLEO-F411RE 로 HC-SR04 초음파 센서 거리를 측정하는 STM32CubeIDE 프로젝트
+- 수업 자료 : [gotree94/STM32 / NUCLEO_F411RE](https://github.com/gotree94/STM32/tree/main/NUCLEO_F411RE)
+- 이전 정리 (개발 환경, GPIO, HC-SR04 1 ~ 8장) : [yeooooly/STM32F411_Project](https://github.com/yeooooly/STM32F411_Project)
 
-- 수업 자료 : [gotree94/STM32 STEP02_거리측정2 (NUCLEO-F411RE)](https://github.com/gotree94/STM32/blob/main/NUCLEO_F411RE/00.F411_TASK_LAB/STEP02_%EA%B1%B0%EB%A6%AC%EC%B8%A1%EC%A0%952.md)
-- 정리 문서 : [STM32F411_Project / 02. HC-SR04 / 9. STEP02 거리측정2](https://github.com/yeooooly/STM32F411_Project/tree/main/02_HC-SR04_DOC#9-실습--step02-거리측정2-tim1--중앙값--디버그-출력)
+## 목차
 
-## 기능
+- [01. HC-SR04 STEP02 거리측정2](./01_HC-SR04_STEP02_2) : TIM1 + EXTI 비차단 상태 머신, 5 Hz 측정 / 1 Hz 중앙값, UART `D,` / `C,` 출력, SWV 트레이스 (Timeline Graph, TRIG ↔ ECHO 타이밍)
+- [02. DHT11](./02_DHT11) : 온습도 센서 1-Wire 통신, 시작 신호 / 40비트 데이터, 체크섬, PA4 (A2) 연결, UART 출력
+
+## 프로젝트 구조
+
+```
+F411_LAB/
+├── 01_HC-SR04_STEP02_2/   HC-SR04 STEP02 거리측정2 문서
+├── 02_DHT11/              DHT11 온습도 센서 문서
+├── Core/                  사용자 코드 (main.c, ultrasonic.c 등)
+├── Drivers/               HAL / CMSIS
+└── F411_LAB.ioc           CubeMX 설정
+```
+
+---
+
+## HC-SR04 STEP02 거리측정2 요약
+
+### 기능
 
 - `HAL_Delay()` 없이 **비차단 상태 머신**으로 측정
 - 200 ms 마다 측정 (5 Hz), 1초마다 최근 5개 **중앙값** 출력 (1 Hz)
@@ -17,7 +33,7 @@ NUCLEO-F411RE 로 HC-SR04 초음파 센서 거리를 측정하는 STM32CubeIDE �
 - B1 버튼 EXTI → LD2 토글
 - SWV 트레이스 변수 (`g_trace_*`) 로 디버거에서 파형 확인
 
-## 핀 배치
+### 핀 배치
 
 | 핀 | 기능 | 연결 |
 |---|---|---|
@@ -29,7 +45,7 @@ NUCLEO-F411RE 로 HC-SR04 초음파 센서 거리를 측정하는 STM32CubeIDE �
 | PB3 | SWO | SWV 트레이스 |
 | 5 V / GND | 센서 전원 | HC-SR04 VCC / GND |
 
-## 설정
+### 설정
 
 | 항목 | 값 |
 |---|---|
@@ -41,7 +57,7 @@ NUCLEO-F411RE 로 HC-SR04 초음파 센서 거리를 측정하는 STM32CubeIDE �
 
 거리(mm) = 펄스 폭(µs) × 3430 / 20000
 
-## 시리얼 출력
+### 시리얼 출력
 
 ```text
 === F411_TASK_LAB Step 2: Ultrasonic ===
@@ -56,7 +72,7 @@ C,10401
 | `D` | 시각(ms), 중앙값 거리(mm), 유효 여부, 누적 오류 수 |
 | `C` | 마지막 ECHO 펄스 폭 (TIM1 count = µs) |
 
-## 파일 구조
+### 파일 구조
 
 ```
 F411_LAB/
